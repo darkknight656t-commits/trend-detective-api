@@ -14,24 +14,27 @@ def corr_label(r: float) -> str:
 def _trend_sentence(name: str, s: dict, unit: str, decimals: int, up: str, down: str) -> str:
     span = f"{s['first_year']} to {s['last_year']}"
     if s["confidence"] == "No significant trend":
-        return (f"No statistically significant {name} trend was detected from {span} "
+        return (f"No statistically significant trend in {name} was detected from {span} "
                 f"(adjusted {fmt_p(s['p_adj'])}).")
     word = up if s["trend_direction"] == "increasing" else down
-    strength = "strong" if s["confidence"] == "Strong" else "weak"
-    return (f"From {span}, {name} in this grid cell shows a {strength} {word} trend of "
-            f"{s['sen_slope_per_decade']:+.{decimals}f} {unit} per decade (adjusted {fmt_p(s['p_adj'])}).")
+    support = "strong" if s["confidence"] == "Strong" else "weak"
+    return (f"From {span}, {name} in this grid cell shows a {word} trend of "
+            f"{s['sen_slope_per_decade']:+.{decimals}f} {unit} per decade, with {support} "
+            f"statistical support (adjusted {fmt_p(s['p_adj'])}).")
 
 
 def build_summary(result: dict) -> list[str]:
     t, p, c = result["temperature"], result["precipitation"], result["correlation"]
     out = [
-        _trend_sentence("average temperature", t, "°C", 2, "warming", "cooling"),
-        _trend_sentence("average rainfall", p, "mm/day", 3, "increasing", "decreasing"),
+        _trend_sentence("average air temperature at 2 m", t, "°C", 2, "warming", "cooling"),
+        _trend_sentence("average precipitation", p, "mm/day", 3, "increasing", "decreasing"),
     ]
     sig = "" if c["p_detrended_adj"] < 0.05 else ", not statistically significant"
+    r = c["spearman_detrended"]
+    label = corr_label(r)
+    kind = label if label == "negligible" else f"{label} {'negative' if r < 0 else 'positive'}"
     out.append(
-        f"After removing each series' own trend, temperature and rainfall show a "
-        f"{corr_label(c['spearman_detrended'])} correlation "
-        f"(Spearman ρ = {c['spearman_detrended']:+.2f}{sig}); this describes association only."
+        f"After removing each series' own trend, temperature and precipitation show a "
+        f"{kind} correlation (Spearman ρ = {r:+.2f}{sig}); this describes association only."
     )
     return out
